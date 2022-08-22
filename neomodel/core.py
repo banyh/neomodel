@@ -12,7 +12,7 @@ from neo4j.exceptions import ClientError
 db = Database()
 
 
-def drop_constraints(quiet=True, stdout=None):
+def drop_constraints(db=db, quiet=True, stdout=None):
     """
     Discover and drop all constraints.
 
@@ -37,7 +37,7 @@ def drop_constraints(quiet=True, stdout=None):
     stdout.write("\n")
 
 
-def drop_indexes(quiet=True, stdout=None):
+def drop_indexes(db=db, quiet=True, stdout=None):
     """
     Discover and drop all indexes.
 
@@ -107,7 +107,7 @@ def install_labels(cls, quiet=True, stdout=None):
                 stdout.write(' + Creating index {0} on label {1} for class {2}.{3}\n'.format(
                     name, cls.__label__, cls.__module__, cls.__name__))
             try:
-                db.cypher_query("CREATE INDEX on :{0}({1}); ".format(
+                cls.db.cypher_query("CREATE INDEX on :{0}({1}); ".format(
                     cls.__label__, db_property))
             except ClientError as e:
                 if e.code in ('Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists',
@@ -121,7 +121,7 @@ def install_labels(cls, quiet=True, stdout=None):
                 stdout.write(' + Creating unique constraint for {0} on label {1} for class {2}.{3}\n'.format(
                     name, cls.__label__, cls.__module__, cls.__name__))
             try:
-                db.cypher_query("CREATE CONSTRAINT "
+                cls.db.cypher_query("CREATE CONSTRAINT "
                                 "on (n:{0}) ASSERT n.{1} IS UNIQUE".format(
                     cls.__label__, db_property))
             except ClientError as e:
@@ -198,15 +198,16 @@ class NodeMeta(type):
             )
 
             cls.__label__ = namespace.get('__label__', name)
+            cls.db = namespace.get('db', db)
 
             if config.AUTO_INSTALL_LABELS:
                 install_labels(cls, quiet=False)
 
             label_set = frozenset(cls.inherited_labels())
-            if label_set not in db._NODE_CLASS_REGISTRY:
-                db._NODE_CLASS_REGISTRY[label_set] = cls
+            if label_set not in cls.db._NODE_CLASS_REGISTRY:
+                cls.db._NODE_CLASS_REGISTRY[label_set] = cls
             else:
-                raise NodeClassAlreadyDefined(cls, db._NODE_CLASS_REGISTRY)
+                raise NodeClassAlreadyDefined(cls, cls.db._NODE_CLASS_REGISTRY)
 
         return cls
 
@@ -357,7 +358,7 @@ class StructuredNode(NodeBase):
 
         results = []
         for item in [cls.deflate(p, obj=_UnsavedNode(), skip_empty=True) for p in props]:
-            node, _ = db.cypher_query(query, {'create_params': item})
+            node, _ = cls.db.cypher_query(query, {'create_params': item})
             results.extend(node[0])
 
         nodes = [cls.inflate(node) for node in results]
@@ -398,7 +399,7 @@ class StructuredNode(NodeBase):
                           category=DeprecationWarning, stacklevel=1)
 
         # fetch and build instance for each result
-        results = db.cypher_query(query, params)
+        results = cls.db.cypher_query(query, params)
         return [cls.inflate(r[0]) for r in results[0]]
 
     def cypher(self, query, params=None):
@@ -415,7 +416,7 @@ class StructuredNode(NodeBase):
         self._pre_action_check('cypher')
         params = params or {}
         params.update({'self': self.id})
-        return db.cypher_query(query, params)
+        return self.db.cypher_query(query, params)
 
     @hooks
     def delete(self):
@@ -460,7 +461,7 @@ class StructuredNode(NodeBase):
                           category=DeprecationWarning, stacklevel=1)
 
         # fetch and build instance for each result
-        results = db.cypher_query(query, params)
+        results = cls.db.cypher_query(query, params)
         return [cls.inflate(r[0]) for r in results[0]]
 
     @classmethod

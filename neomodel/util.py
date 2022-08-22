@@ -75,7 +75,7 @@ class Database(local, NodeClassRegistry):
     A singleton object via which all operations from neomodel to the Neo4j backend are handled with.
     """
 
-    def __init__(self):
+    def __init__(self, url=None):
         """
         """
         self._active_transaction = None
@@ -84,6 +84,8 @@ class Database(local, NodeClassRegistry):
         self._session = None
         self._pid = None
         self._database_name = DEFAULT_DATABASE
+        if url is not None:
+            self.set_connection(url)
 
     def set_connection(self, url):
         """
@@ -192,10 +194,10 @@ class Database(local, NodeClassRegistry):
         The function operates recursively in order to be able to resolve Nodes
         within nested list structures. Not meant to be called directly,
         used primarily by cypher_query.
-        
+
         :param result_list: A list of results as returned by cypher_query.
         :type list:
-        
+
         :return: A list of instantiated objects.
         """
 
@@ -241,7 +243,7 @@ class Database(local, NodeClassRegistry):
                      resolve_objects=False):
         """
         Runs a query on the database and returns a list of results and their headers.
-        
+
         :param query: A CYPHER query
         :type: str
         :param params: Dictionary of parameters
@@ -249,7 +251,7 @@ class Database(local, NodeClassRegistry):
         :param handle_unique: Whether or not to raise UniqueProperty exception on Cypher's ConstraintValidation errors
         :type: bool
         :param retry_on_session_expire: Whether or not to attempt the same query again if the transaction has expired
-        :type: bool        
+        :type: bool
         :param resolve_objects: Whether to attempt to resolve the returned nodes to data model objects automatically
         :type: bool
         """

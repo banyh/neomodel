@@ -43,7 +43,7 @@ class StructuredRel(StructuredRelBase):
             query += " SET r.{0} = ${1}".format(key, key)
         props['self'] = self.id
 
-        db.cypher_query(query, props)
+        self.db.cypher_query(query, props)
 
         return self
 
@@ -58,18 +58,18 @@ class StructuredRel(StructuredRelBase):
 
         :return: StructuredNode
         """
-        return db.cypher_query("MATCH (aNode) "
+        return self.db.cypher_query("MATCH (aNode) "
                                "WHERE id(aNode)={nodeid} "
                                "RETURN aNode".format(nodeid=self._start_node_id),
                                resolve_objects = True)[0][0][0]
-      
+
     def end_node(self):
         """
         Get end node
 
         :return: StructuredNode
         """
-        return db.cypher_query("MATCH (aNode) "
+        return self.db.cypher_query("MATCH (aNode) "
                                "WHERE id(aNode)={nodeid} "
                                "RETURN aNode".format(nodeid=self._end_node_id),
                                resolve_objects = True)[0][0][0]
